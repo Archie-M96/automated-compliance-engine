@@ -4,16 +4,16 @@
 
 Manual security audits don't scale, and in financial services, a single 
 misconfigured S3 bucket exposing customer or transaction data isn't just a 
-technical bug — it's a regulatory incident. Frameworks like POPIA (South 
+technical bug, it's a regulatory incident. Frameworks like POPIA (South 
 Africa) and international equivalents demand continuous, auditable proof 
 that data-at-rest controls remain enforced, not just that they were correct 
-at deployment time. Configuration drift — a bucket policy changed manually, 
-a public access block accidentally removed — is one of the most common 
+at deployment time. Configuration drift (a bucket policy changed manually, 
+a public access block accidentally removed) is one of the most common 
 causes of real-world cloud data breaches.
 
 This project automates the first line of defense: a scheduled, serverless 
 audit that checks every S3 bucket in the account against a required security 
-control, and alerts a human the moment drift is detected — closing the gap 
+control, and alerts a human the moment drift is detected, closing the gap 
 between "secure at deployment" and "secure right now."
 
 ## Architecture
@@ -47,7 +47,7 @@ between "secure at deployment" and "secure right now."
 
 ## Current Scope & Next Steps
 
-This is a **detection-first v1** — it identifies drift and alerts a human; 
+This is a **detection-first v1**, it identifies drift and alerts a human; 
 it does not auto-remediate. Deliberate scope decisions for this version:
 
 - Checks one control (`PublicAccessBlock`) rather than a full compliance 
