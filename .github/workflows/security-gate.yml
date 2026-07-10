@@ -1,0 +1,28 @@
+name: DevSecOps Security Gate
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  security-scan:
+    name: Gitleaks & Checkov Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Run GitLeaks (Secrets Scanner)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run Checkov (IaC Misconfiguration Scanner)
+        uses: bridgecrewio/checkov-action@master
+        with:
+          directory: .
+          framework: terraform
