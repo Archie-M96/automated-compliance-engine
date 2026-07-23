@@ -1,71 +1,49 @@
 # Automated Cloud Compliance Monitor
 
-## Business Case
+## Why I Built This
+Manual security audits don't scale, and in financial services a single misconfigured S3 bucket 
+isn't just a bug, it's a regulatory incident. Frameworks like POPIA demand continuous, auditable 
+proof that controls stay enforced, not just that they were correct at deployment time. 
+Configuration drift is one of the most common real-world causes of cloud data breaches, so I 
+built a scheduled, serverless audit that catches it and alerts a human the moment it happens.
 
-Manual security audits don't scale, and in financial services, a single 
-misconfigured S3 bucket exposing customer or transaction data isn't just a 
-technical bug, it's a regulatory incident. Frameworks like POPIA (South 
-Africa) and international equivalents demand continuous, auditable proof 
-that data-at-rest controls remain enforced, not just that they were correct 
-at deployment time. Configuration drift (a bucket policy changed manually, 
-a public access block accidentally removed) is one of the most common 
-causes of real-world cloud data breaches.
-
-This project automates the first line of defense: a scheduled, serverless 
-audit that checks every S3 bucket in the account against a required security 
-control, and alerts a human the moment drift is detected, closing the gap 
-between "secure at deployment" and "secure right now."
-
-## Architecture
+## What I Built
 
 ### 1. Trigger Layer (Scheduled Automation)
-- **Service:** Amazon EventBridge
-- **Pattern:** Cron-based rule firing daily at 08:00, decoupling the audit 
-  schedule from the audit logic itself — the schedule can change without 
-  touching the Lambda.
+- Amazon EventBridge, cron-based rule firing daily at 08:00. This decouples the audit schedule 
+  from the audit logic, so I can change timing without touching the Lambda.
 
 ### 2. Compute Layer (Audit Logic)
-- **Runtime:** Python 3.12, using `boto3`
-- **Function:** Enumerates every S3 bucket in the account and checks the 
-  `PublicAccessBlock` configuration on each. Buckets missing full public 
-  access block enforcement are flagged as non-compliant.
+- Python 3.12, using `boto3`, enumerates every S3 bucket in the account and checks its 
+  `PublicAccessBlock` configuration. Anything missing full enforcement gets flagged non-compliant.
 
-### 3. Alerting Layer (Human-in-the-Loop Notification)
-- **Service:** Amazon SNS
-- **Flow:** Non-compliant findings are published as a structured payload to 
-  a dedicated SNS topic, which delivers an email alert — ensuring drift is 
-  surfaced to a human within the same operational day it occurs, not 
-  discovered during the next scheduled audit or manual review.
+### 3. Alerting Layer (Human-in-the-Loop)
+- Non-compliant findings publish as a structured payload to a dedicated SNS topic, delivering an 
+  email alert the same operational day drift occurs, not at the next scheduled review.
 
 ### 4. Identity & Access Layer (IAM)
-- **Framework:** Principle of Least Privilege (PoLP)
-- **Implementation:** A dedicated IAM role restricts the Lambda to exactly 
-  two capabilities — read-only S3 configuration checks (`s3:GetBucket*`) 
-  and publish rights to the single, specific SNS topic ARN. The function 
-  cannot modify any bucket, read any object data, or publish to any other 
-  destination.
+- The Lambda's role has exactly two capabilities: read-only `s3:GetBucket*` checks and publish 
+  rights to one specific SNS topic ARN. It cannot modify a bucket, read object data, or publish 
+  anywhere else.
 
 ## Current Scope & Next Steps
+This is a detection-first v1. It identifies drift and alerts, it doesn't auto-remediate yet. 
+I deliberately kept it to one control (`PublicAccessBlock`) as the highest-impact starting point, 
+and kept a human in the loop rather than letting an automated process alter production resources 
+unsupervised.
 
-This is a **detection-first v1**, it identifies drift and alerts a human; 
-it does not auto-remediate. Deliberate scope decisions for this version:
-
-- Checks one control (`PublicAccessBlock`) rather than a full compliance 
-  ruleset — chosen as the highest-impact, most common misconfiguration to 
-  start with.
-- Alerts rather than auto-fixes, keeping a human in the loop for this 
-  version rather than allowing an automated process to alter production 
-  resources unsupervised.
-
-**Planned v2:** an optional auto-remediation path (Lambda re-applies the 
-public access block on detection) gated behind a manual approval step, plus 
-expanding the ruleset to cover encryption-at-rest and bucket policy checks.
-- Transitioning from custom scheduled Lambda scans to native event-driven detection using AWS Config and CloudTrail for real-time drift alerting.
+**Planned v2:** an optional auto-remediation path (Lambda re-applies the block on detection) 
+gated behind manual approval, plus expanding the ruleset to cover encryption-at-rest and bucket 
+policy checks. I'm also looking at moving from scheduled Lambda scans to native AWS Config plus 
+CloudTrail event-driven detection for real-time alerting instead of a daily cron.
 
 ## CI/CD & Security Prevention (DevSecOps)
-This repository is protected by a continuous integration pipeline using GitHub Actions. 
-- **GitLeaks:** Scans every push and pull request for hardcoded secrets and credentials.
-- **Checkov:** Scans Terraform code for infrastructure misconfigurations before deployment.
+This repo is protected by a GitHub Actions pipeline:
+- **GitLeaks** scans every push and PR for hardcoded secrets.
+- **Checkov** scans the Terraform for infrastructure misconfigurations before deployment.
 
-*Proof of execution: The pipeline was tested via intentional secret injection. See [this failed workflow run](https://github.com/Archie-M96/automated-compliance-engine/commit/64c2d29ceb4c52659beb2172e820ca9048c22806)for a live example of the gate successfully blocking a leaked AWS credential.*
-https://github.com/Archie-M96/automated-compliance-engine/commit/64c2d29ceb4c52659beb2172e820ca9048c22806
+*Proof of execution: I tested this by intentionally committing a dummy AWS credential. 
+[See the blocked run here](https://github.com/Archie-M96/automated-compliance-engine/commit/64c2d29ceb4c52659beb2172e820ca9048c22806). 
+It's worth noting the block itself doesn't remove the secret from git history. The real 
+incident response step is revoking and rotating the credential immediately, not just fixing 
+the file.*
