@@ -61,3 +61,11 @@ it does not auto-remediate. Deliberate scope decisions for this version:
 public access block on detection) gated behind a manual approval step, plus 
 expanding the ruleset to cover encryption-at-rest and bucket policy checks.
 - Transitioning from custom scheduled Lambda scans to native event-driven detection using AWS Config and CloudTrail for real-time drift alerting.
+
+## CI/CD & Security Prevention (DevSecOps)
+This repository is protected by a continuous integration pipeline using GitHub Actions. 
+- **GitLeaks:** Scans every push and pull request for hardcoded secrets and credentials.
+- **Checkov:** Scans Terraform code for infrastructure misconfigurations before deployment.
+
+*Proof of execution: The pipeline was tested via intentional secret injection. See [this failed workflow run](https://github.com/Archie-M96/automated-compliance-engine/commit/64c2d29ceb4c52659beb2172e820ca9048c22806)for a live example of the gate successfully blocking a leaked AWS credential.*
+https://github.com/Archie-M96/automated-compliance-engine/commit/64c2d29ceb4c52659beb2172e820ca9048c22806
